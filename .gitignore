@@ -1,0 +1,20 @@
+# Cursor
+.cursor
+
+# node_modules
+node_modules
+
+# env
+.env
+
+docs/text.md
+docs/test.md
+
+# hardhat build outputs
+contracts/artifacts/
+contracts/cache/
+contracts/typechain/
+contracts/typechain-types/
+contracts/coverage/
+contracts/coverage.json
+
