@@ -5,7 +5,7 @@
 node_modules
 
 # env
-.env
+.env*
 
 docs/text.md
 docs/test.md
