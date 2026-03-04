@@ -72,6 +72,11 @@ Update only these three places:
 2. `config/tokens.ts` - set mainnet contract addresses
 3. `.env` - use mainnet wallet private keys
 
+Facilitator endpoint notes:
+
+- Mainnet official facilitator: `https://facilitator.paygo.ac`
+- Testnet: no official facilitator at the moment (use self-hosted facilitator)
+
 No business logic changes are required.
 
 ## Project Structure
