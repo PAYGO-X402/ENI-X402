@@ -100,6 +100,7 @@ TOKEN_DECIMALS=18
 import { config } from "dotenv";
 import express from "express";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+import type { AssetAmount } from "@x402/core/types";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { parseUnits } from "viem";
@@ -119,12 +120,31 @@ if (!payTo) throw new Error("SERVER_EVM_ADDRESS is required");
 
 const facilitator = new HTTPFacilitatorClient({ url: facilitatorUrl });
 
-const evmScheme = new ExactEvmScheme();
-evmScheme.registerMoneyParser(async (amount: number) => {
-  const humanAmount = amount.toFixed(tokenDecimals);
+type DecimalString = string & { readonly __decimalString: unique symbol };
+
+function parseDecimalString(value: string, fieldName = "decimal value"): DecimalString {
+  const normalized = value.trim();
+  if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(normalized)) {
+    throw new Error(
+      `${fieldName} must be a plain decimal string like "0.001" or "42.5". Received: ${value}`,
+    );
+  }
+
+  const [rawIntegerPart, rawFractionPart = ""] = normalized.split(".");
+  const integerPart = rawIntegerPart.replace(/^0+(?=\d)/, "") || "0";
+  const fractionPart = rawFractionPart.replace(/0+$/, "");
+
+  return (
+    fractionPart.length > 0
+      ? `${integerPart}.${fractionPart}`
+      : integerPart
+  ) as DecimalString;
+}
+
+function createPriceAssetAmount(price: DecimalString): AssetAmount {
   return {
     asset: pusd,
-    amount: parseUnits(humanAmount, tokenDecimals).toString(),
+    amount: parseUnits(price, tokenDecimals).toString(),
     extra: {
       assetTransferMethod: "eip3009",
       name: process.env.EIP3009_NAME || "Test USD Coin",
@@ -132,7 +152,11 @@ evmScheme.registerMoneyParser(async (amount: number) => {
       decimals: tokenDecimals,
     },
   };
-});
+}
+
+const resourcePrice = parseDecimalString(process.env.PRICE_USD || "0.001", "PRICE_USD");
+const priceAssetAmount = createPriceAssetAmount(resourcePrice);
+const evmScheme = new ExactEvmScheme();
 
 app.use(
   paymentMiddleware(
@@ -143,7 +167,7 @@ app.use(
             scheme: "exact",
             network,
             payTo,
-            price: `$${process.env.PRICE_USD || "0.001"}`,
+            price: priceAssetAmount,
           },
         ],
         description: "Paid resource with x402 + EIP-3009 PUSD",
@@ -167,6 +191,7 @@ app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);
   console.log(`Facilitator: ${facilitatorUrl}`);
   console.log(`PUSD: ${pusd}`);
+  console.log(`Price (USD decimal): ${resourcePrice}`);
 });
 ```
 

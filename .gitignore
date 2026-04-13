@@ -18,3 +18,14 @@ contracts/typechain-types/
 contracts/coverage/
 contracts/coverage.json
 
+plugins/eni-x402-devkit/.mcp.json
+plugins/eni-x402-devkit/README.md
+plugins/eni-x402-devkit/.codex-plugin/plugin.json
+plugins/eni-x402-devkit/agents/openai.yaml
+plugins/eni-x402-devkit/scripts/eni-x402-mcp.mjs
+plugins/eni-x402-devkit/skills/eni-x402-upgrade/SKILL.md
+plugins/eni-x402-devkit/skills/eni-x402-upgrade/agents/openai.yaml
+plugins/eni-x402-devkit/skills/eni-x402-upgrade/references/architecture.md
+plugins/eni-x402-devkit/skills/eni-x402-upgrade/references/change-playbooks.md
+.agents/plugins/marketplace.json
+AGENTS.md

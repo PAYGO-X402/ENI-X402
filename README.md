@@ -29,6 +29,7 @@ npm install
 ```bash
 cp .env.example .env
 # Edit .env and fill in test wallet private keys
+# PRICE_USD must stay a plain decimal string, e.g. 0.001
 ```
 
 ### 3. Deploy contracts to ENI testnet

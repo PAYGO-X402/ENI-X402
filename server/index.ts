@@ -1,10 +1,16 @@
 import { config } from "dotenv";
 import express from "express";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+import type { AssetAmount } from "@x402/core/types";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { HTTPFacilitatorClient } from "@x402/core/server";
-import { createPublicClient, http, parseUnits } from "viem";
+import { createPublicClient, http } from "viem";
 import { NETWORK_ID, activeChain } from "../config/chains.js";
+import {
+  type DecimalString,
+  decimalToUnitAmount,
+  parseDecimalString,
+} from "../config/decimal.js";
 import { tokenConfig } from "../config/tokens.js";
 
 config();
@@ -76,28 +82,30 @@ async function readTokenMetadata(): Promise<TokenMetadata> {
   };
 }
 
-function createEvmScheme(metadata: TokenMetadata) {
-  const evmScheme = new ExactEvmScheme();
-  evmScheme.registerMoneyParser(async (amount: number, _network: string) => {
-    const humanAmount = amount.toFixed(metadata.decimals);
-    const tokenAmount = parseUnits(humanAmount, metadata.decimals).toString();
-    return {
-      amount: tokenAmount,
-      asset: tokenConfig.pusd,
-      extra: {
-        assetTransferMethod: "eip3009",
-        name: metadata.eip3009DomainName,
-        version: metadata.eip3009DomainVersion,
-        decimals: metadata.decimals,
-      },
-    };
-  });
-  return evmScheme;
+function createPriceAssetAmount(
+  price: DecimalString,
+  metadata: TokenMetadata,
+): AssetAmount {
+  return {
+    amount: decimalToUnitAmount(price, metadata.decimals),
+    asset: tokenConfig.pusd,
+    extra: {
+      assetTransferMethod: "eip3009",
+      name: metadata.eip3009DomainName,
+      version: metadata.eip3009DomainVersion,
+      decimals: metadata.decimals,
+    },
+  };
 }
 
 async function main() {
   const metadata = await readTokenMetadata();
-  const eip3009Scheme = createEvmScheme(metadata);
+  const resourcePrice = parseDecimalString(
+    process.env.PRICE_USD || "0.001",
+    "PRICE_USD",
+  );
+  const priceAssetAmount = createPriceAssetAmount(resourcePrice, metadata);
+  const eip3009Scheme = new ExactEvmScheme();
 
   app.use(
     paymentMiddleware(
@@ -106,7 +114,7 @@ async function main() {
           accepts: [
             {
               scheme: "exact",
-              price: "$0.001",
+              price: priceAssetAmount,
               network: NETWORK_ID,
               payTo: evmAddress,
             },
@@ -129,6 +137,7 @@ async function main() {
       network: NETWORK_ID,
       paymentMethod: "eip3009",
       timestamp: new Date().toISOString(),
+      priceUsd: resourcePrice,
       eip3009DomainName: metadata.eip3009DomainName,
       eip3009DomainVersion: metadata.eip3009DomainVersion,
       decimals: metadata.decimals,
@@ -141,7 +150,7 @@ async function main() {
       chain: activeChain.name,
       network: NETWORK_ID,
       endpoints: {
-        "/secret-data": "GET — $0.001 per request (x402 + EIP-3009)",
+        "/secret-data": `GET - $${resourcePrice} per request (x402 + EIP-3009)`,
       },
     });
   });
@@ -151,6 +160,7 @@ async function main() {
     console.log(`Chain: ${activeChain.name} (${NETWORK_ID})`);
     console.log(`Pay-to address: ${evmAddress}`);
     console.log(`Facilitator: ${facilitatorUrl}`);
+    console.log(`Price (USD decimal): ${resourcePrice}`);
     console.log(
       `Token metadata from chain: decimals=${metadata.decimals}, eip3009 name="${metadata.eip3009DomainName}", version="${metadata.eip3009DomainVersion}"`,
     );
